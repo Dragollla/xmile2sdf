@@ -28,14 +28,13 @@ class Aux:
         self.eqn = eqn
 
 def transform_equation(equation, auxies, stocks):
-    
     aliases = re.findall(r"\"(.+?)\"", equation)
     for alias in aliases:
         aux = next((a for a in auxies if a.name == alias), None)
         if aux != None:
             equation = equation.replace('"' + alias + '"', aux.eqn)
         else:
-            equation = equation.replace('"' + alias + '"', "amount (find (\st -> name st == \"%s\") stocks)" % alias)
+            equation = equation.replace('"' + alias + '"', "amount (find (\\st -> name st == \"%s\") stocks)" % alias)
     return equation
 
 def parse_xmile(filename):
