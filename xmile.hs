@@ -7,7 +7,7 @@ module Xmile(
 
     data Flow = Flow {
         name :: String,
-        eqn  :: (Stock -> Num -> Stock)
+        eqn  :: (Stock -> Num -> [Stock] -> Stock)
     } deriving (Show)
 
     data Stock = Stock {

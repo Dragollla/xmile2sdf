@@ -28,17 +28,14 @@ class Aux:
         self.eqn = eqn
 
 def transform_equation(equation, auxies, stocks):
-    while True:
-        search = re.search(r"\"(.+?)\"", equation)
-        if search == None or search.groups().count == 0:
-            break
-        name = search.group(1)
-        aux = next((a for a in auxies if a.name == name), None)
+    
+    aliases = re.findall(r"\"(.+?)\"", equation)
+    for alias in aliases:
+        aux = next((a for a in auxies if a.name == alias), None)
         if aux != None:
-            equation = equation.replace('"' + name + '"', aux.eqn)
+            equation = equation.replace('"' + alias + '"', aux.eqn)
         else:
-            stock = next((s for s in stocks if s.name == name), None)
-            equation = equation.replace('"' + name + '"', stock.amount)
+            equation = equation.replace('"' + alias + '"', "amount (find (\st -> name st == \"%s\") stocks)" % alias)
     return equation
 
 def parse_xmile(filename):
@@ -105,7 +102,7 @@ import           Xmile
 
     flowsDeclaration = "flows = "
     for flow in model.flows:
-        flowsDeclaration += "(Flow \"%s\" (\\s dt -> changeStockAmount s (amount s + dt * (%s)):" % (flow.name, flow.eqn)
+        flowsDeclaration += "(Flow \"%s\" (\\s dt stocks -> changeStockAmount s (amount s + dt * (%s)))):" % (flow.name, flow.eqn)
     flowsDeclaration += "[]"
 
     source = header + '\n' + \
