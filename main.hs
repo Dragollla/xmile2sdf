@@ -14,4 +14,4 @@ module Main where
         line <- getLine
         return (read line)
 
-    main = iterate step stocks flows !! (stop - start / dt)
+    main = iterate step stocks flows !! ((stop - start) / dt)
