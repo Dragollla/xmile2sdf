@@ -2,67 +2,6 @@ import re
 import xml.etree.ElementTree
 import math
 
-mathOperators = r"\+\-\/\*"
-mathFunctions = ["sqrt", "pow", "sin", "cos", "tg"]
-mathConstants = ["pi", "e"]
-
-def findLastOperator(eqnStr):
-    mathFunctionsPattern = reduce(lambda a,b: a + '|' + b, mathFunctions)
-    binaryOperatorPattern = r"(?:(.+?)([{0}])(.+?))".format(mathOperators)
-    functionCallPattern = r"(?:({0})\((.+?)\))".format(mathFunctionsPattern)
-    re.search(r"{0}|{1}".format(binaryOperatorPattern, functionCallPattern), eqnStr).groups()
-
-def readToken(eqnStr, i):
-    digits = "0123456789"
-    operators = "+-*/"
-    constants = ["pi", "e"]
-    functions = ["sqrt", "pow", "sin", "cos", "tg"]
-    # skip whitespaces
-    while i < len(eqnStr) and eqnStr[i] == ' ':
-        i += 1
-    # if token starts with brace ( then it is expression wrapped in braces
-    if eqnStr[i] == '(':
-        # scan to closing brace
-        j = i + 1
-        while j < len(eqnStr) and eqnStr[j] != ')':
-            j += 1
-        # exclude braces from returning value
-        return (eqnStr[i + 1:j], j + 1)
-    # if token starts with quote then it is var name
-    if(eqnStr[i] == "\"" or eqnStr[i] == "\'"):
-        # scan to next matching quote
-        j = i + 1
-        while j < len(eqnStr) and eqnStr[j] != eqnStr[i]:
-            j += 1
-        # exclude quotes from returning value
-        return (eqnStr[i + 1:j], j + 1)
-    # if token starts with digits then it is number
-    if(eqnStr[i] in digits):
-        # scan to last digit in number
-        j = i + 1
-        while j < len(eqnStr) and eqnStr[j] in digits:
-            j += 1
-        return (eqnStr[i:j], j + 1)
-    if(eqnStr[i] in operators):
-        return (eqnStr[i], i + 1)
-    # if token is not a number, operator or var name wrapped in quotes
-    # then it is a var name without quotes and possible math constant
-    j = i + 1
-    while j < len(eqnStr) and eqnStr[j] not in (digits + " " + operators):
-        j += 1
-    token = eqnStr[i:j+1]
-    if token in constants:
-        # replace constant with its value maybe? 
-        return (token, j + 1)
-    else if token in functions:
-        # todo: consider function token format
-        return (token, j + 1)
-    else:
-        return (token, j + 1)
-
-def getFirstAliasWithinQuotes(text):
-    return re.search(r"(?:\")(.+?)(?:\")", text).group(1)
-
 class FunctionalBlock:
     def __init__(self, inputs, outputs, function):
         self.inputs = inputs
