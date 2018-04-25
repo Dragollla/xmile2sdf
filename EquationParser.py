@@ -73,13 +73,21 @@ class EquationParser:
     
     def getTokenType(self, tokenString):
         isNumber = True
-        if tokenString[0] in self.quotes:
-            return self.TYPE_REFERENCE
+        isRef = True
+        startsWithQuote = tokenString[0] in self.quotes
+
         if len(tokenString) == 1 and tokenString[0] in self.operators:
             return self.TYPE_OPERATOR
-        for char in tokenString:
+
+        for i, char in enumerate(tokenString):
             if char not in self.digits:
                 isNumber = False
+            # if meet matching quote before the end of token 
+            # than it is not valid reference
+            if i > 0 and i < len(tokenString) - 1 and startsWithQuote and char == tokenString[0]:
+                isRef = False
+        if isRef and tokenString[0] == tokenString[len(tokenString) - 1]:
+            return self.TYPE_REFERENCE
         if isNumber:
             return self.TYPE_NUMBER
         return self.TYPE_EQUATION
@@ -92,4 +100,4 @@ class EquationParser:
                 tokens[i] = self.parse(token)
         return tokens
         
-print(EquationParser().parse("(1 + 2) * 3 - (4 - (6 + 3)) / 10"))
+print(EquationParser().parse('("Teacup Temperature"-"Room Temperature")/"Characteristic Time"'))
