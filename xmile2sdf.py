@@ -137,7 +137,7 @@ def build_sdf_model(model):
             constants.append(FunctionalBlock('"' + aux.name + '"', "constant", [aux.eqn.tokens[0]]))
     #stocks.append(FunctionalBlock("time", "loop", "0"))
 
-    constants.append(FunctionalBlock("t_step", "constant", ["500"]))
+    constants.append(FunctionalBlock("t_step", "constant", ["0.125"]))
     zero = FunctionalBlock("zero", "constant", "0")
     constants.append(zero)
 
@@ -152,7 +152,7 @@ def build_sdf_model(model):
         fbs.append(FunctionalBlock(stock.name + "_delta", "sub", [stock.name + "_delta_in", stock.name + "_delta_out"]))
         fbs.append(FunctionalBlock(stock.name + "'", "add", ['"' + stock.name + '"', stock.name + "_delta"]))
 
-    for fb in fbs:
+    for fb in fbs + stocks:
         for arg in fb.args:
             connected = False
             for fb_in in (fbs + constants + stocks):
@@ -161,18 +161,31 @@ def build_sdf_model(model):
                     fb.addInput(fb_in.output())
                     connected = True
                     break
-            if not connected:
+            if not (connected or type(arg) is int):
                 fb.addInput(zero.output())
-
-    for fb in stocks:
-        for arg in fb.args:
-            for fb_in in fbs:
-                if arg == fb_in.name:
-                    fb.addInput(fb_in.output())
-                    break
 
     print(fbs, constants, stocks, sep='\n================================\n',
      end="\n================================\nCOMPLETED\n")
 
+    return (fbs, constants, stocks)
+
+def generate_haskell_fb_code(fbs, constants, stocks):
+    fbSrc = "["
+    nodes = []
+    for constant in constants:
+        node = "FB." + constant.function + " " + str(int(float(constant.args[0]) * 1000)) + " [" + ", ".join(constant.outputs) + "]"
+        nodes.append(node)
+    for stock in stocks:
+        node = "FB." + stock.function + " " + str(int(float(stock.args[0]) * 1000)) + " [" + ", ".join(stock.outputs) + "] " + stock.inputs[0]
+        nodes.append(node)
+    for fb in fbs:
+        node = "FB." + fb.function + " " + " ".join(fb.inputs) + " [" + ", ".join(fb.outputs) + "]"
+        nodes.append(node)
+    fbSrc += "\n, ".join(nodes)
+    fbSrc += "]"
+    return fbSrc
+
 model = parse_xmile("teacup.xml")
-build_sdf_model(model)
+sdf = build_sdf_model(model)
+print(generate_haskell_fb_code(sdf[0], sdf[1], sdf[2]))
+
