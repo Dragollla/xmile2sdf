@@ -1,20 +1,35 @@
 import re
 import xml.etree.ElementTree
 import math
+from Equation import Equation
 
 class FunctionalBlock:
-    def __init__(self, inputs, outputs, function):
-        self.inputs = inputs
-        self.outputs = outputs
+    def __init__(self, name, function, args):
+        self.name = name
         self.function = function
+        self.args = args
+        self.outputs = []
+        self.inputs = []
 
-class Equation:
-    def __init__(self, text):
-        self.text = text
-        self.aliases = re.findall(r"\"(.+?)\"", text)
-        # If there are no aliases in equation then it is constant.
-        # Provided aliases are wrapped in quotes.
-        self.isConstant = len(self.aliases) == 0
+    def __eq__(self, other):
+        return self.name == other.name
+
+    def __str__(self):
+        argsStr = ", ".join(map(lambda a: str(a), self.args))
+        inputs = ", ".join(self.inputs)
+        outputs = ", ".join(self.outputs)
+        return self.name + ": " + self.function + "(" + argsStr + ")\n\tInputs: [" + inputs + "]\n\tOutputs: [" + outputs + "]\n"
+
+    def __repr__(self): return str(self)
+
+    def addInput(self, inpt):
+        self.inputs.append(inpt)
+
+    def output(self):
+        index = len(self.outputs)
+        output = self.name + str(index)
+        self.outputs.append(output)
+        return output
 
 class Model:
     def __init__(self, flows, stocks, auxies, start, stop, dt):
@@ -23,31 +38,13 @@ class Model:
         self.auxies = auxies
         self.start = start
         self.stop = stop
-        self.dt = dt
-        aliasesExtractor = lambda obj: obj.aliases
-        allAliases = map(aliasesExtractor, flows) + map(aliasesExtractor, stocks) + map(aliasesExtractor, auxies)
-        for equatable in (flows + stocks + auxies):
-            for alias in equatable.eqn.aliases:
-                # check for invalid aliases
-                if(alias not in allAliases):
-                    raise NameError(alias + " not found in flows, stocks and auxies")       
-    
-    def transformEquationToBlock(self, equation):
-        inputs = []
-        if equation[0] == '\"':
-            inputs.append(getFirstAliasWithinQuotes(equation))
-        else:
-            pass
-        
-
-    def nextToken(self, equationString):
-        pass
+        self.dt = dt        
+        # raise NameError(alias + " not found in flows, stocks and auxies")
 
 class Flow:
     def __init__(self, name, eqn):
         self.name = name
         self.eqn = Equation(eqn)
-        self.isConstant = eqn.isConstant
 
 class Stock:
     def __init__(self, name, eqn, inflows, outflows):
@@ -57,13 +54,11 @@ class Stock:
         self.inflows = inflows
         # references to outgoing flows
         self.outflows = outflows
-        self.isConstant = eqn.isConstant
 
 class Aux:
     def __init__(self, name, eqn):
         self.name = name
         self.eqn = Equation(eqn)
-        self.isConstant = eqn.isConstant
 
 def parse_xmile(filename):
     ns = { "xmile": "http://docs.oasis-open.org/xmile/ns/XMILE/v1.0" }
@@ -103,4 +98,81 @@ def parse_xmile(filename):
 
     return Model(flows, stocks, auxies, start, stop, dt)
 
+def symbolToFBName(symbol):
+    symbols = "+-*/"
+    names = ["add", "sub", "mul", "div"]
+    return names[symbols.index(symbol)]
+
+def listExpressions(expression, lst, name = ""):
+    if len(name) == 0:
+        name = expression.text
+    inputs = []
+    if type(expression.tokens[0]) is Equation:
+        inputs.append(expression.tokens[0].text)
+        listExpressions(expression.tokens[0], lst)
+    else:
+        inputs.append(expression.tokens[0])
+    if type(expression.tokens[2]) is Equation:
+        inputs.append(expression.tokens[2].text)
+        listExpressions(expression.tokens[2], lst)
+    else:
+        inputs.append(expression.tokens[2])
+    operator = symbolToFBName(expression.tokens[1])
+    lst.append(FunctionalBlock(name, operator, inputs))
+
+def build_sdf_model(model):
+    constants = []
+    fbs = []
+    stocks = []
+    for namedEqn in model.flows + model.auxies:
+        if namedEqn.eqn.type == Equation.TYPE_EXPRESSION:
+            listExpressions(namedEqn.eqn, fbs, '"' + namedEqn.name + '"')
+    for stock in model.stocks:
+        if stock.eqn.type == Equation.TYPE_NUMBER:
+            stocks.append(FunctionalBlock('"' + stock.name + '"', "loop", [stock.eqn.tokens[0], stock.name + "'"]))
+        elif stock.eqn.type == Equation.TYPE_REFERENCE:
+            stocks.append(FunctionalBlock('"' + stock.name + '"', "loop", [stock.eqn.text, stock.name + "'"]))
+    for aux in model.auxies:
+        if aux.eqn.type == Equation.TYPE_NUMBER:
+            constants.append(FunctionalBlock('"' + aux.name + '"', "constant", [aux.eqn.tokens[0]]))
+    #stocks.append(FunctionalBlock("time", "loop", "0"))
+
+    constants.append(FunctionalBlock("t_step", "constant", ["500"]))
+    zero = FunctionalBlock("zero", "constant", "0")
+    constants.append(zero)
+
+    fbs.append(FunctionalBlock("t'", "add", ["t", "t_step"]))
+    stocks.append(FunctionalBlock("time", "loop", ["0", "t'"]))
+
+    for stock in model.stocks:
+        for inflow in stock.inflows:
+            fbs.append(FunctionalBlock(stock.name + "_delta_in", "mul", [inflow, "t_step"]))
+        for outflow in stock.outflows:
+            fbs.append(FunctionalBlock(stock.name + "_delta_out", "mul", [outflow, "t_step"]))
+        fbs.append(FunctionalBlock(stock.name + "_delta", "sub", [stock.name + "_delta_in", stock.name + "_delta_out"]))
+        fbs.append(FunctionalBlock(stock.name + "'", "add", ['"' + stock.name + '"', stock.name + "_delta"]))
+
+    for fb in fbs:
+        for arg in fb.args:
+            connected = False
+            for fb_in in (fbs + constants + stocks):
+                #print(arg, " == ", fb_in.name, " -> ", arg == fb_in.name)
+                if arg == fb_in.name:
+                    fb.addInput(fb_in.output())
+                    connected = True
+                    break
+            if not connected:
+                fb.addInput(zero.output())
+
+    for fb in stocks:
+        for arg in fb.args:
+            for fb_in in fbs:
+                if arg == fb_in.name:
+                    fb.addInput(fb_in.output())
+                    break
+
+    print(fbs, constants, stocks, sep='\n================================\n',
+     end="\n================================\nCOMPLETED\n")
+
 model = parse_xmile("teacup.xml")
+build_sdf_model(model)
