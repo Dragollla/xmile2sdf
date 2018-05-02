@@ -179,7 +179,7 @@ def generate_haskell_fb_code(fbs, constants, stocks):
         node = "FB." + fb.function + " " + " ".join(map(lambda x: "\"" + x + "\"", fb.inputs)) + " [" + ", ".join(map(lambda x: '"' + x + '"', fb.outputs)) + "]"
         nodes.append(node)
     fbSrc += "\n, ".join(nodes)
-    fbSrc += "]"
+    fbSrc += " :: FB (Parcel String Int) ]"
     return fbSrc
 print("\n================================\nSTARTED\n================================\n")
 model = parse_xmile("teacup.xml")
