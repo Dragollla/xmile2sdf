@@ -105,20 +105,20 @@ def symbolToFBName(symbol):
 
 def listExpressions(expression, lst, name = ""):
     if len(name) == 0:
-        name = expression.text
-    inputs = []
-    if type(expression.tokens[0]) is Equation:
-        inputs.append(expression.tokens[0].text)
+        name = expression.text.replace("\"", "")
+    args = []
+    if expression.tokens[0].type == Equation.TYPE_EXPRESSION:
+        args.append(expression.tokens[0].text.replace("\"", ""))
         listExpressions(expression.tokens[0], lst)
     else:
-        inputs.append(expression.tokens[0])
-    if type(expression.tokens[2]) is Equation:
-        inputs.append(expression.tokens[2].text)
+        args.append(expression.tokens[0].tokens[0])
+    if expression.tokens[2].type == Equation.TYPE_EXPRESSION:
+        args.append(expression.tokens[2].text)
         listExpressions(expression.tokens[2], lst)
     else:
-        inputs.append(expression.tokens[2])
-    operator = symbolToFBName(expression.tokens[1])
-    lst.append(FunctionalBlock(name, operator, inputs))
+        args.append(expression.tokens[2].tokens[0])
+    operator = symbolToFBName(expression.tokens[1].tokens[0])
+    lst.append(FunctionalBlock(name, operator, args))
 
 def build_sdf_model(model):
     constants = []
@@ -126,31 +126,30 @@ def build_sdf_model(model):
     stocks = []
     for namedEqn in model.flows + model.auxies:
         if namedEqn.eqn.type == Equation.TYPE_EXPRESSION:
-            listExpressions(namedEqn.eqn, fbs, '"' + namedEqn.name + '"')
+            listExpressions(namedEqn.eqn, fbs, namedEqn.name )
     for stock in model.stocks:
         if stock.eqn.type == Equation.TYPE_NUMBER:
-            stocks.append(FunctionalBlock('"' + stock.name + '"', "loop", [stock.eqn.tokens[0], stock.name + "'"]))
+            stocks.append(FunctionalBlock(stock.name, "loop", [stock.eqn.tokens[0], stock.name + "'"]))
         elif stock.eqn.type == Equation.TYPE_REFERENCE:
-            stocks.append(FunctionalBlock('"' + stock.name + '"', "loop", [stock.eqn.text, stock.name + "'"]))
+            stocks.append(FunctionalBlock(stock.name, "loop", [stock.eqn.text, stock.name + "'"]))
     for aux in model.auxies:
         if aux.eqn.type == Equation.TYPE_NUMBER:
-            constants.append(FunctionalBlock('"' + aux.name + '"', "constant", [aux.eqn.tokens[0]]))
-    #stocks.append(FunctionalBlock("time", "loop", "0"))
+            constants.append(FunctionalBlock(aux.name, "constant", [aux.eqn.tokens[0]]))
 
     constants.append(FunctionalBlock("t_step", "constant", ["0.125"]))
     zero = FunctionalBlock("zero", "constant", "0")
     constants.append(zero)
 
     fbs.append(FunctionalBlock("t'", "add", ["t", "t_step"]))
-    stocks.append(FunctionalBlock("time", "loop", ["0", "t'"]))
+    stocks.append(FunctionalBlock("t", "loop", [0, "t'"]))
 
     for stock in model.stocks:
         for inflow in stock.inflows:
-            fbs.append(FunctionalBlock(stock.name + "_delta_in", "mul", [inflow, "t_step"]))
+            fbs.append(FunctionalBlock(stock.name + "_delta_in", "mul", [inflow.replace("\"", ""), "t_step"]))
         for outflow in stock.outflows:
-            fbs.append(FunctionalBlock(stock.name + "_delta_out", "mul", [outflow, "t_step"]))
+            fbs.append(FunctionalBlock(stock.name + "_delta_out", "mul", [outflow.replace("\"", ""), "t_step"]))
         fbs.append(FunctionalBlock(stock.name + "_delta", "sub", [stock.name + "_delta_in", stock.name + "_delta_out"]))
-        fbs.append(FunctionalBlock(stock.name + "'", "add", ['"' + stock.name + '"', stock.name + "_delta"]))
+        fbs.append(FunctionalBlock(stock.name + "'", "add", [stock.name, stock.name + "_delta"]))
 
     for fb in fbs + stocks:
         for arg in fb.args:
@@ -164,28 +163,29 @@ def build_sdf_model(model):
             if not (connected or type(arg) is int):
                 fb.addInput(zero.output())
 
-    print(fbs, constants, stocks, sep='\n================================\n',
-     end="\n================================\nCOMPLETED\n")
-
+    print(fbs, constants, stocks, sep='\n--------------------------------\n')
     return (fbs, constants, stocks)
 
 def generate_haskell_fb_code(fbs, constants, stocks):
     fbSrc = "["
     nodes = []
     for constant in constants:
-        node = "FB." + constant.function + " " + str(int(float(constant.args[0]) * 1000)) + " [" + ", ".join(constant.outputs) + "]"
+        node = "FB." + constant.function + " " + str(int(float(constant.args[0]) * 1000)) + " [" + ", ".join(map(lambda x: '"' + x + '"', constant.outputs)) + "]"
         nodes.append(node)
     for stock in stocks:
-        node = "FB." + stock.function + " " + str(int(float(stock.args[0]) * 1000)) + " [" + ", ".join(stock.outputs) + "] " + stock.inputs[0]
+        node = "FB." + stock.function + " " + str(int(float(stock.args[0]) * 1000)) + " [" + ", ".join(map(lambda x: '"' + x + '"', stock.outputs)) + "] " + "\"" + stock.inputs[0] + "\""
         nodes.append(node)
     for fb in fbs:
-        node = "FB." + fb.function + " " + " ".join(fb.inputs) + " [" + ", ".join(fb.outputs) + "]"
+        node = "FB." + fb.function + " " + " ".join(map(lambda x: "\"" + x + "\"", fb.inputs)) + " [" + ", ".join(map(lambda x: '"' + x + '"', fb.outputs)) + "]"
         nodes.append(node)
     fbSrc += "\n, ".join(nodes)
     fbSrc += "]"
     return fbSrc
-
+print("\n================================\nSTARTED\n================================\n")
 model = parse_xmile("teacup.xml")
+print("\n================================\nXMILE -> DONE\n================================\n")
 sdf = build_sdf_model(model)
-print(generate_haskell_fb_code(sdf[0], sdf[1], sdf[2]))
+print("\n================================\nSDF -> DONE\n================================\n")
+print(generate_haskell_fb_code(sdf[0], sdf[1], sdf[2]), 
+end="\n================================\nFB -> DONE\n================================\n")
 

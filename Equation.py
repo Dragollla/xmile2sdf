@@ -11,22 +11,32 @@ class Equation:
     FUNCTIONS = ["sqrt", "pow", "sin", "cos", "tg"]
     QUOTES = "\"\'"
 
+    @staticmethod
+    def getType(token):
+        if type(token) is Equation:
+            return token.type
+        if len(token) == 1 and token in Equation.OPERATORS:
+            return Equation.TYPE_OPERATOR
+        if token.isdigit():
+            return Equation.TYPE_NUMBER
+        for op in list(Equation.OPERATORS) + Equation.FUNCTIONS:
+            if op in token:
+                return Equation.TYPE_EXPRESSION
+        return Equation.TYPE_REFERENCE
+
     def __init__(self, text):
         self.text = text
-        self.type = self.getTokenType(text)
+        self.type = Equation.getType(text)
         self.tokens = self.parse(text)
 
     def __str__(self):
-        return self.text + '\n' + str(self.tokens)
+        return str(self.tokens) + " -> " + self.type
 
     def __repr__(self):
-        return (
-    "-= Source =-" + self.text + " -> " + self.type + 
-    "\n-= Tokens =-\n" + str(self.tokens) + 
-    "\n-= Types =-\n" + str(list(map(lambda a: str(self.getTokenType(a)), self.tokens))))
+        return str(self)
 
     def __eq__(self, other):
-        if len(self.tokens) != len(other.tokens):
+        if not type(other) is Equation or len(self.tokens) != len(other.tokens):
             return False
         for i, self_token in enumerate(self.tokens):
             if self_token != other.tokens[i]:
@@ -57,8 +67,10 @@ class Equation:
             j = i + 1
             while j < len(equationString) and equationString[j] != equationString[i]:
                 j += 1
-            # include quotes in returning value
-            return (equationString[i:j + 1], j + 1)
+            # exclude quotes in returning value
+            token = equationString[i:j]
+            token = token.replace("\"", "")
+            return (token, j + 1)
         # if token starts with digits then it is number
         if(equationString[i] in Equation.DIGITS):
             # scan to last digit in number
@@ -88,48 +100,20 @@ class Equation:
         i = 0
         while i < len(equationString):
             t = self.readToken(equationString, i)
-            tokens.append(t[0])
+            tokens.append(Equation(t[0]))
             i = t[1]
         return tokens
-    
-    def getTokenType(self, token):
-        if type(token) is Equation:
-            return Equation.TYPE_EXPRESSION
-        
-        # token is str
-
-        isNumber = True
-        isRef = True
-
-        startsWithQuote = token[0] in Equation.QUOTES
-
-        if len(token) == 1 and token[0] in Equation.OPERATORS:
-            return self.TYPE_OPERATOR
-
-        for i, char in enumerate(token):
-            if char not in Equation.DIGITS:
-                isNumber = False
-            # if meet matching quote before the end of token 
-            # than it is not valid reference
-            if i > 0 and i < len(token) - 1 and startsWithQuote and char == token[0]:
-                isRef = False
-        if isRef and token[0] == token[len(token) - 1]:
-            return Equation.TYPE_REFERENCE
-        if isNumber:
-            return Equation.TYPE_NUMBER
-        return Equation.TYPE_EXPRESSION
 
     def parse(self, equationString):
         tokens = []
         if self.type == Equation.TYPE_EXPRESSION:
             tokens = self.splitInTokens(equationString)
-            for i, token in enumerate(tokens):
-                if self.getTokenType(token) == Equation.TYPE_EXPRESSION:
-                    tokens[i] = Equation(token)
         elif self.type == Equation.TYPE_NUMBER:
             tokens = [int(self.text)]
-        elif self.type == Equation.TYPE_OPERATOR or self.type == Equation.TYPE_REFERENCE:
+        elif self.type == Equation.TYPE_OPERATOR:
             tokens = [self.text]
+        elif self.type == Equation.TYPE_REFERENCE:
+            tokens = [self.text.replace("\"", "").replace("'", "")]
         return tokens
         
 #print(Equation('("Teacup Temperature"-"Room Temperature")/"Characteristic Time"'))
