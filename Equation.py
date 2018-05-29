@@ -54,11 +54,12 @@ class Equation:
             j = i + 1
             openingBracesCount = 1
             while j < len(equationString) and openingBracesCount > 0:
-                j += 1
                 if equationString[j] == '(':
                     openingBracesCount += 1
                 elif equationString[j] == ')':
                     openingBracesCount -= 1
+                j += 1
+            j -= 1
             # exclude braces from returning value
             return (equationString[i + 1:j], j + 1)
         # if token starts with quote then it is var name
@@ -85,7 +86,7 @@ class Equation:
         j = i + 1
         while j < len(equationString) and equationString[j] not in (Equation.DIGITS + " " + Equation.OPERATORS):
             j += 1
-        token = equationString[i:j+1]
+        token = equationString[i:j]
         if token in Equation.CONSTANTS:
             # replace constant with its value maybe? 
             return (token, j + 1)
@@ -100,7 +101,11 @@ class Equation:
         i = 0
         while i < len(equationString):
             t = self.readToken(equationString, i)
-            tokens.append(Equation(t[0]))
+            e = Equation(t[0])
+            tokens.append(e)
+            if e.type == Equation.TYPE_OPERATOR:
+               tokens.append(Equation(equationString[t[1]:len(equationString)]))
+               break
             i = t[1]
         return tokens
 
