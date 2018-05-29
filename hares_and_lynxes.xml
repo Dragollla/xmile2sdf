@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<xmile xmlns="http://docs.oasis-open.org/xmile/ns/XMILE/v1.0" version="1.0" level="3">
+    <header>
+        <smile version="1.0">
+            <uses_submodels></uses_submodels>
+        </smile>
+        <name>model</name>
+        <uuid>5c1276e0-9bab-4489-b31c-a1e5dfc3a410</uuid>
+        <vendor>SDLabs</vendor>
+        <product version="0.1">go-xmile</product>
+    </header>
+    <sim_specs time_units="time">
+        <start>0</start>
+        <stop>12</stop>
+        <dt>0.5</dt>
+    </sim_specs>
+    <dimensions></dimensions>
+    <model_units></model_units>
+    <equation_prefs xmlns="isee" order_by="module"></equation_prefs>
+    <model>
+        <variables>
+            <module name="hares">
+                <connect to="area" from=".area"></connect>
+                <connect to="lynxes" from="lynxes.lynxes"></connect>
+            </module>
+            <module name="lynxes">
+                <connect to="hare_density" from="hares.hare_density"></connect>
+                <connect to="size_of_one_time_lynx_harvest" from=".size_of_one_time_lynx_harvest"></connect>
+            </module>
+            <aux name="area">
+                <eqn>1000 </eqn>
+            </aux>
+            <aux name="size_of_one_time_lynx_harvest">
+                <eqn>100 </eqn>
+            </aux>
+        </variables>
+    </model>
+    <model name="hares">
+        <variables>
+            <stock name="hares">
+                <eqn>50000 </eqn>
+                <non_negative></non_negative>
+                <inflow>births</inflow>
+                <outflow>deaths</outflow>
+            </stock>
+            <flow name="births">
+                <eqn>hares * birth_fraction </eqn>
+                <non_negative></non_negative>
+            </flow>
+            <flow name="deaths">
+                <eqn>lynxes * hares_killed_per_lynx </eqn>
+                <non_negative></non_negative>
+            </flow>
+            <aux name="birth_fraction">
+                <eqn>1.25 </eqn>
+            </aux>
+            <aux name="area">
+                <eqn>{Enter equation for use when not hooked up to other models}</eqn>
+            </aux>
+            <aux name="hare_density">
+                <eqn>hares / area </eqn>
+            </aux>
+            <stock name="lynxes">
+                <eqn>{Enter equation for use when not hooked up to other models}</eqn>
+                <non_negative></non_negative>
+            </stock>
+            <aux name="hares_killed_per_lynx">
+                <eqn>hare_density </eqn>
+            </aux>
+        </variables>
+    </model>
+    <model name="lynxes">
+        <variables>
+            <stock name="lynxes">
+                <eqn>1250 </eqn>
+                <non_negative></non_negative>
+                <inflow>births</inflow>
+                <outflow>deaths</outflow>
+                <outflow>harvest</outflow>
+            </stock>
+            <flow name="births">
+                <eqn>lynxes * birth_fraction </eqn>
+                <non_negative></non_negative>
+            </flow>
+            <flow name="deaths">
+                <eqn>death_fraction * lynxes </eqn>
+                <non_negative></non_negative>
+            </flow>
+            <aux name="hare_density">
+                <eqn>{Enter equation for use when not hooked up to other models}</eqn>
+            </aux>
+            <aux name="birth_fraction">
+                <eqn>0.25 </eqn>
+            </aux>
+            <aux name="death_fraction">
+                <eqn>hare_density </eqn>
+            </aux>
+            <flow name="harvest">
+                <eqn>PULSE( size_of_one_time_lynx_harvest , 4 , 0 ) </eqn>
+                <non_negative></non_negative>
+            </flow>
+            <aux name="size_of_one_time_lynx_harvest">
+                <eqn>{Enter equation for use when not hooked up to other models}</eqn>
+            </aux>
+        </variables>
+    </model>
+</xmile>

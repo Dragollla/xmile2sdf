@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<xmile xmlns="http://docs.oasis-open.org/xmile/ns/XMILE/v1.0" version="1.0" level="3">
+    <header>
+        <smile version="1.0"></smile>
+        <name>SIR</name>
+        <uuid>03ab2dd2-6655-4e16-98ab-cb95abef1af9</uuid>
+        <vendor>SDLabs</vendor>
+        <product version="0.1">go-xmile</product>
+    </header>
+    <sim_specs time_units="Time">
+        <start>0</start>
+        <stop>100</stop>
+        <dt>0.03125</dt>
+    </sim_specs>
+    <dimensions></dimensions>
+    <model_units></model_units>
+    <equation_prefs xmlns="isee" order_by="module"></equation_prefs>
+    <model>
+        <variables>
+            <stock name="susceptible">
+                <eqn>total_population</eqn>
+                <outflow>succumbing</outflow>
+                <units>people</units>
+            </stock>
+            <stock name="infectious">
+                <eqn>5</eqn>
+                <inflow>succumbing</inflow>
+                <outflow>recovering</outflow>
+                <units>people</units>
+            </stock>
+            <stock name="recovered">
+                <eqn>0</eqn>
+                <inflow>recovering</inflow>
+                <units>people</units>
+            </stock>
+            <flow name="succumbing">
+                <eqn>("susceptible" * "infectious") / "total_population" </eqn>
+                <units>person/time</units>
+            </flow>
+            <flow name="recovering">
+                <eqn>infectious/duration</eqn>
+                <units>person/time</units>
+            </flow>
+            <aux name="total_population">
+                <eqn>1000</eqn>
+                <units>people</units>
+            </aux>
+            <aux name="duration">
+                <eqn>5</eqn>
+                <units>days</units>
+            </aux>
+            <aux name="contact_infectivity">
+                <eqn>0.3</eqn>
+            </aux>
+        </variables>
+    </model>
+</xmile>
