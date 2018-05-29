@@ -34,11 +34,11 @@
                 <units>people</units>
             </stock>
             <flow name="succumbing">
-                <eqn>("susceptible" * "infectious") / "total_population" </eqn>
+                <eqn>susceptible * infectious / total_population * contact_infectivity</eqn>
                 <units>person/time</units>
             </flow>
             <flow name="recovering">
-                <eqn>infectious/duration</eqn>
+                <eqn>infectious / duration</eqn>
                 <units>person/time</units>
             </flow>
             <aux name="total_population">
