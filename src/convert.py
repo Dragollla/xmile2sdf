@@ -3,6 +3,7 @@ import re
 import xml.etree.ElementTree
 import math
 from Equation import Equation
+from graphviz import Digraph
 
 class FunctionalBlock:
     def __init__(self, name, function, args):
@@ -32,7 +33,8 @@ class FunctionalBlock:
         return output
 
 class Model:
-    def __init__(self, flows, stocks, auxies, start, stop, dt):
+    def __init__(self, name, flows, stocks, auxies, start, stop, dt):
+        self.name = name
         self.flows = flows
         self.stocks = stocks
         self.auxies = auxies
@@ -75,6 +77,8 @@ def parse_xmile(filename):
     tree = xml.etree.ElementTree.parse(filename)
     root = tree.getroot()
 
+    name = root.find("xmile:header", ns).find("xmile:name", ns).text
+
     simSpecs = root.find("xmile:sim_specs", ns)
     start = simSpecs.find("xmile:start", ns).text
     stop = simSpecs.find("xmile:stop", ns).text
@@ -106,7 +110,7 @@ def parse_xmile(filename):
         eqn = flow.find("xmile:eqn", ns).text
         flows.append(Flow(name, eqn))
 
-    return Model(flows, stocks, auxies, start, stop, dt)
+    return Model(name, flows, stocks, auxies, start, stop, dt)
 
 def symbolToFBName(symbol):
     symbols = "+-*/"
@@ -168,19 +172,24 @@ def build_sdf_model(model):
         fbs.append(FunctionalBlock(stock.name + "_delta", "sub", [stock.name + "_delta_in", stock.name + "_delta_out"]))
         fbs.append(FunctionalBlock(stock.name + "'", "add", [stock.name, stock.name + "_delta"]))
 
+    dot = Digraph(comment=model.name)
+
     for fb in fbs + stocks:
+        dot.node(fb.name)
         for arg in fb.args:
             connected = False
             for fb_in in (fbs + constants + stocks):
                 if arg == fb_in.name:
                     fb.addInput(fb_in.output())
+                    dot.edge(fb_in.name, fb.name)
                     connected = True
                     break
             if not (connected or type(arg) is float or type(arg) is int):
                 fb.addInput(zero.output())
 
-    print(fbs, constants, stocks, sep='\n--------------------------------\n')
-    return (fbs, constants, stocks)
+    print(fbs, constants, stocks, sep='\n--------------------------------\n', end='\n--------------------------------\n')
+    print(dot.source)
+    return (fbs, constants, stocks, dot)
 
 def generate_haskell_fb_code(fbs, constants, stocks):
     fbSrc = "[ "
@@ -209,4 +218,4 @@ sdf = build_sdf_model(model)
 print("\n================================\nSDF -> DONE\n================================\n")
 print(generate_haskell_fb_code(sdf[0], sdf[1], sdf[2]), 
 end="\n================================\nFB -> DONE\n================================\n")
-
+sdf[3].render('output/graph.gv')
