@@ -89,12 +89,12 @@ class Equation:
         token = equationString[i:j]
         if token in Equation.CONSTANTS:
             # replace constant with its value maybe? 
-            return (token, j + 1)
+            return (token, j)
         elif token in Equation.FUNCTIONS:    
             # todo: consider function token format
-            return (token, j + 1)
+            return (token, j)
         else:
-            return (token, j + 1)
+            return (token, j)
 
     def splitInTokens(self, equationString):
         tokens = []
