@@ -12,12 +12,20 @@ class Equation:
     QUOTES = "\"\'"
 
     @staticmethod
+    def isfloat(value):
+        try:
+            float(value)
+            return True
+        except ValueError:
+            return False
+
+    @staticmethod
     def getType(token):
         if type(token) is Equation:
             return token.type
         if len(token) == 1 and token in Equation.OPERATORS:
             return Equation.TYPE_OPERATOR
-        if token.isdigit():
+        if token.isdigit() or Equation.isfloat(token):
             return Equation.TYPE_NUMBER
         for op in list(Equation.OPERATORS) + Equation.FUNCTIONS:
             if op in token:
@@ -25,7 +33,7 @@ class Equation:
         return Equation.TYPE_REFERENCE
 
     def __init__(self, text):
-        self.text = text
+        self.text = text.strip()
         self.type = Equation.getType(text)
         self.tokens = self.parse(text)
 
@@ -114,7 +122,7 @@ class Equation:
         if self.type == Equation.TYPE_EXPRESSION:
             tokens = self.splitInTokens(equationString)
         elif self.type == Equation.TYPE_NUMBER:
-            tokens = [int(self.text)]
+            tokens = [float(self.text)]
         elif self.type == Equation.TYPE_OPERATOR:
             tokens = [self.text]
         elif self.type == Equation.TYPE_REFERENCE:

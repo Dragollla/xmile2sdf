@@ -20,7 +20,6 @@ class FunctionalBlock:
         inputs = ", ".join(self.inputs)
         outputs = ", ".join(self.outputs)
         return self.name + ": " + self.function + "(" + argsStr + ")\n\tInputs: [" + inputs + "]\n\tOutputs: [" + outputs + "]\n"
-
     def __repr__(self): return str(self)
 
     def addInput(self, inpt):
@@ -46,20 +45,30 @@ class Flow:
     def __init__(self, name, eqn):
         self.name = name
         self.eqn = Equation(eqn)
+    
+    def __str__(self):
+        return "\"" + self.name + "\": " + str(self.eqn)
+    def __repr__(self): return str(self)
 
 class Stock:
     def __init__(self, name, eqn, inflows, outflows):
         self.name = name
         self.eqn = Equation(eqn)
-        # references to incoming flows
         self.inflows = inflows
-        # references to outgoing flows
         self.outflows = outflows
+    
+    def __str__(self):
+        return "\"" + self.name + "\": " + str(self.eqn)
+    def __repr__(self): return str(self)
 
 class Aux:
     def __init__(self, name, eqn):
         self.name = name
         self.eqn = Equation(eqn)
+    
+    def __str__(self):
+        return "\"" + self.name + "\": " + str(self.eqn)
+    def __repr__(self): return str(self)
 
 def parse_xmile(filename):
     ns = { "xmile": "http://docs.oasis-open.org/xmile/ns/XMILE/v1.0" }
@@ -167,7 +176,7 @@ def build_sdf_model(model):
                     fb.addInput(fb_in.output())
                     connected = True
                     break
-            if not (connected or type(arg) is int):
+            if not (connected or type(arg) is float or type(arg) is int):
                 fb.addInput(zero.output())
 
     print(fbs, constants, stocks, sep='\n--------------------------------\n')
