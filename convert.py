@@ -121,6 +121,15 @@ def listExpressions(expression, lst, name = ""):
     operator = symbolToFBName(expression.tokens[1].tokens[0])
     lst.append(FunctionalBlock(name, operator, args))
 
+def resolveToNubmer(eqn, model):
+    if eqn.type == Equation.TYPE_NUMBER:
+        return eqn.tokens[0]
+    if eqn.type == Equation.TYPE_EXPRESSION:
+        raise NotImplementedError("Expressions not supported")
+    for namedEqn in model.auxies:
+        if namedEqn.name == eqn.text:
+            return resolveToNubmer(namedEqn.eqn, model)
+
 def build_sdf_model(model):
     constants = []
     fbs = []
@@ -129,10 +138,8 @@ def build_sdf_model(model):
         if namedEqn.eqn.type == Equation.TYPE_EXPRESSION:
             listExpressions(namedEqn.eqn, fbs, namedEqn.name )
     for stock in model.stocks:
-        if stock.eqn.type == Equation.TYPE_NUMBER:
-            stocks.append(FunctionalBlock(stock.name, "loop", [stock.eqn.tokens[0], stock.name + "'"]))
-        elif stock.eqn.type == Equation.TYPE_REFERENCE:
-            stocks.append(FunctionalBlock(stock.name, "loop", [stock.eqn.text, stock.name + "'"]))
+        val = resolveToNubmer(stock.eqn, model)
+        stocks.append(FunctionalBlock(stock.name, "loop", [val, stock.name + "'"]))
     for aux in model.auxies:
         if aux.eqn.type == Equation.TYPE_NUMBER:
             constants.append(FunctionalBlock(aux.name, "constant", [aux.eqn.tokens[0]]))
