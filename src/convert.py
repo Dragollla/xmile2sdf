@@ -165,10 +165,20 @@ def build_sdf_model(model):
     stocks.append(FunctionalBlock("t", "loop", [0, "t'"]))
 
     for stock in model.stocks:
+        previousFlow = None
         for inflow in stock.inflows:
-            fbs.append(FunctionalBlock(stock.name + "_delta_in", "mul", [inflow.replace("\"", ""), "t_step"]))
+            flowName = inflow.replace("\"", "")
+            if previousFlow != None:
+                fbs.append(FunctionalBlock(stock.name + "_" + flowName + " + " + previousFlow, "add", [previousFlow, flowName]))
+            previousFlow = flowName
+        fbs.append(FunctionalBlock(stock.name + "_delta_in", "mul", [previousFlow, "t_step"]))
+        previousFlow = None
         for outflow in stock.outflows:
-            fbs.append(FunctionalBlock(stock.name + "_delta_out", "mul", [outflow.replace("\"", ""), "t_step"]))
+            flowName = outflow.replace("\"", "")
+            if previousFlow != None:
+                fbs.append(FunctionalBlock(stock.name + "_" + flowName + " + " + previousFlow, "add", [previousFlow, flowName]))
+            previousFlow = flowName
+        fbs.append(FunctionalBlock(stock.name + "_delta_out", "mul", [previousFlow, "t_step"]))
         fbs.append(FunctionalBlock(stock.name + "_delta", "sub", [stock.name + "_delta_in", stock.name + "_delta_out"]))
         fbs.append(FunctionalBlock(stock.name + "'", "add", [stock.name, stock.name + "_delta"]))
 
